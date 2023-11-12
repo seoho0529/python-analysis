@@ -113,6 +113,69 @@ print(crime_analysis.corr())
 # 건        -0.890489 -0.161952  0.865526  0.903435  1.000000
 # 실업률은 발생건수와 상관관계가 거의 없다고 알 수 있다.
 
+print('123412341234')
+import statsmodels.api as sm
+
+# 독립 변수와 종속 변수 정의
+X = crime_analysis[['CPI', '실업률', '스트레스 인지율', '인구수']]
+y = crime_analysis['발생건수']
+
+# 상수항 추가
+X = sm.add_constant(X)
+
+# 다중 회귀 모델 생성
+model = sm.OLS(y, X).fit()
+
+# 회귀 분석 결과 출력
+print(model.summary())
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+from sklearn import metrics
+
+# 독립 변수와 종속 변수 정의
+X = crime_analysis[['CPI', '실업률', '스트레스 인지율', '인구수']]
+y = crime_analysis['발생건수']
+
+# 데이터 분할 (학습 데이터와 테스트 데이터)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# 다중 회귀 모델 생성 및 학습
+model = LinearRegression()
+model.fit(X_train, y_train)
+
+# 모델 평가
+y_pred = model.predict(X_test)
+print('Mean Absolute Error:', metrics.mean_absolute_error(y_test, y_pred))
+print('Mean Squared Error:', metrics.mean_squared_error(y_test, y_pred))
+print('Root Mean Squared Error:', np.sqrt(metrics.mean_squared_error(y_test, y_pred)))
+
+# 실제값과 예측값의 산점도
+plt.scatter(y_test, y_pred)
+plt.xlabel("실제값")
+plt.ylabel("예측값")
+plt.title("실제값 vs 예측값 산점도")
+plt.show()
+
+# 실제값과 예측값의 차이 (잔차) 계산
+residuals = y_test - y_pred
+
+# 요약 통계 출력
+print(residuals.describe())
+
+import pandas as pd
+import statsmodels.api as sm
+
+# 독립 변수와 종속 변수 정의
+X = crime_analysis[['CPI', '실업률', '스트레스 인지율', '인구수']]
+y = crime_analysis['발생건수']
+
+# 상수항 추가
+X = sm.add_constant(X)
+
+# 다중 회귀 모델 생성
+model = sm.OLS(y, X).fit()
+
+'''
 # 히트맵
 import seaborn as sns
 sns.pairplot(crime_analysis, kind='reg')
@@ -149,6 +212,7 @@ print(stats.bartlett(crime_analysis['CPI'],crime_analysis['실업률'], crime_an
 # BartlettResult(statistic=901.4731487208453, pvalue=4.241215932978223e-195)
 # FlignerResult(statistic=39.57852798144273, pvalue=1.3088388445622003e-08)
 # LeveneResult(statistic=26.629502809814117, pvalue=7.79363288050101e-11)
+'''
 
 
 
