@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pandas.plotting import scatter_matrix
 from functools import reduce
+from sklearn.preprocessing import StandardScaler
 plt.rc('font',family='malgun gothic')
 import scipy.stats as stats
 
@@ -18,9 +19,12 @@ cpi_mean = cpi_mean.set_index('연도')
 # print(cpi_mean.columns)
 print(cpi_mean, type(cpi_mean)) # 연도 CPI
 
+outlier_index = cpi_mean[cpi_mean['CPI'] > cpi_mean['CPI'].mean() + 1.5 * cpi_mean['CPI'].std()].index
+cpi_mean.loc[outlier_index, 'CPI'] = cpi_mean['CPI'].mean()
+
 # print(cpi_mean, type(cpi_mean))
 # print(cpi_mean)
-# plt.plot(cpi_mean)
+plt.boxplot(cpi_mean)
 # plt.show()
 
 unempl = pd.read_csv('../testdata/unemployment.csv', index_col='연도')
@@ -35,11 +39,19 @@ unempl = pd.read_csv('../testdata/unemployment.csv', index_col='연도')
 # print(unempl.columns)
 print(unempl, type(unempl)) # 연도 실업률
 
+lower_threshold = 3.8 
+outlier_index2 = unempl[unempl['실업률'] < lower_threshold].index
+unempl.loc[outlier_index2, '실업률'] = unempl['실업률'].mean()
+print('바뀐 unempl', unempl)
+
+
+# 결과 확인
+print(unempl)
 print('스트레스')
 stress = pd.read_csv('../testdata/stress2.csv', index_col=None)
 stress = stress.T
 stress = stress.iloc[1:,]
-stress.columns=['스트레스 인지율']
+stress.columns=['스트레스_인지율']
 stress.index.name = '연도'
 stress.reset_index(inplace=True)
 stress = stress.set_index('연도')
@@ -81,9 +93,9 @@ popul_tot.index = popul_tot.index.astype(int)
 popul_tot['인구수'] = popul_tot['인구수'].astype(int)
 crime.index = crime.index.astype(int)
 crime['발생건수'] = crime['발생건수'].astype(int)
-print(stress['스트레스 인지율'].dtype)
-stress['스트레스 인지율']=stress['스트레스 인지율'].astype('float64')
-print(stress['스트레스 인지율'].dtype)
+print(stress['스트레스_인지율'].dtype)
+stress['스트레스_인지율']=stress['스트레스_인지율'].astype('float64')
+print(stress['스트레스_인지율'].dtype)
 # print(cpi_mean['연도'].dtypes, unempl['연도'].dtypes)
 # cpi_unemple = pd.merge(cpi_mean, unempl, on='연도')
 # print(cpi_unemple)
@@ -92,170 +104,98 @@ print(stress['스트레스 인지율'].dtype)
 
 print('데이터 프레임 합치기-crime_anal')
 df = [cpi_mean, unempl, stress, popul_tot, crime]
-print(df)
+# print(df)
 crime_analysis = reduce(lambda left, right: pd.merge(left, right, on='연도', how='inner'), df)
-print(crime_analysis)
+# print(crime_analysis)
 # crime_anal=crime_analysis.set_index('연도') # 컬럼에 있던 연도를 인덱스로 바꿈
 # print(crime_anal)
 
-# (CPI, 실업률, 스트레스 인지율, 인구수, 발생건수) 산점도 그리기
+# (CPI, 실업률, 스트레스_인지율, 인구수, 발생건수) 산점도 그리기
 import matplotlib.pylab as pylab  
 scatter_matrix(crime_analysis, alpha=0.8, diagonal='hist')
 #plt.show()
 
 #  상관계수 구하기
 print(crime_analysis.corr())  
-#                CPI       실업률  스트레스 인지율       인구수        발생건수
-# CPI       1.000000 -0.139293 -0.851870 -0.949905 -0.890489
-# 실업률      -0.139293  1.000000  0.109529  0.076489 -0.161952
-# 스트레스 인지율 -0.851870  0.109529  1.000000  0.889252  0.865526
-# 인구수      -0.949905  0.076489  0.889252  1.000000  0.903435
-# 건        -0.890489 -0.161952  0.865526  0.903435  1.000000
+#                CPI       실업률  스트레스_인지율       인구수      발생건수
+# CPI       1.000000  0.434024 -0.663881 -0.816641 -0.836556
+# 실업률       0.434024  1.000000 -0.342577 -0.347722 -0.553590
+# 스트레스_인지율 -0.663881 -0.342577  1.000000  0.889252  0.865526
+# 인구수      -0.816641 -0.347722  0.889252  1.000000  0.903435
+# 발생건수     -0.836556 -0.553590  0.865526  0.903435  1.000000
 # 실업률은 발생건수와 상관관계가 거의 없다고 알 수 있다.
 
-print('123412341234')
-import statsmodels.api as sm
+# plt.boxplot(unempl)
+# plt.show()
+# plt.boxplot(stress)
+# plt.show()
+# plt.boxplot(popul_tot)
+# plt.show()
+# plt.boxplot(crime)
+# plt.show()
 
-# 독립 변수와 종속 변수 정의
-X = crime_analysis[['CPI', '실업률', '스트레스 인지율', '인구수']]
-y = crime_analysis['발생건수']
+# 정규화
+scaler = StandardScaler()
 
-# 상수항 추가
-X = sm.add_constant(X)
+cpi_mean[['CPI']] = scaler.fit_transform(cpi_mean[['CPI']])
+unempl[['실업률']] = scaler.fit_transform(unempl[['실업률']])
+stress[['스트레스_인지율']] = scaler.fit_transform(stress[['스트레스_인지율']])
+popul_tot[['인구수']] = scaler.fit_transform(popul_tot[['인구수']])
+crime[['발생건수']] = scaler.fit_transform(crime[['발생건수']])
 
-# 다중 회귀 모델 생성
-model = sm.OLS(y, X).fit()
+# print(cpi_mean)
+# print(unempl)
+# print(stress)
+# print(popul_tot)
+# print(crime)
 
-# 회귀 분석 결과 출력
-print(model.summary())
-from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import train_test_split
-from sklearn import metrics
 
-# 독립 변수와 종속 변수 정의
-X = crime_analysis[['CPI', '실업률', '스트레스 인지율', '인구수']]
-y = crime_analysis['발생건수']
 
-# 데이터 분할 (학습 데이터와 테스트 데이터)
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-# 다중 회귀 모델 생성 및 학습
-model = LinearRegression()
-model.fit(X_train, y_train)
-
-# 모델 평가
-y_pred = model.predict(X_test)
-print('Mean Absolute Error:', metrics.mean_absolute_error(y_test, y_pred))
-print('Mean Squared Error:', metrics.mean_squared_error(y_test, y_pred))
-print('Root Mean Squared Error:', np.sqrt(metrics.mean_squared_error(y_test, y_pred)))
-
-# 실제값과 예측값의 산점도
-plt.scatter(y_test, y_pred)
-plt.xlabel("실제값")
-plt.ylabel("예측값")
-plt.title("실제값 vs 예측값 산점도")
-plt.show()
-
-# 실제값과 예측값의 차이 (잔차) 계산
-residuals = y_test - y_pred
-
-# 요약 통계 출력
-print(residuals.describe())
-
-import pandas as pd
-import statsmodels.api as sm
-
-# 독립 변수와 종속 변수 정의
-X = crime_analysis[['CPI', '실업률', '스트레스 인지율', '인구수']]
-y = crime_analysis['발생건수']
-
-# 상수항 추가
-X = sm.add_constant(X)
-
-# 다중 회귀 모델 생성
-model = sm.OLS(y, X).fit()
-
-'''
 # 히트맵
 import seaborn as sns
 sns.pairplot(crime_analysis, kind='reg')
-#plt.show()
+plt.show()
 
 # 피어슨 상관계수로 각 독립변수와 종속변수의 상관계수 구하기
-print(stats.pearsonr(crime_analysis['발생건수'], crime_analysis['CPI'])) # PearsonRResult(statistic=-0.8904886218046394, pvalue=8.58853600470416e-06)
-print(stats.pearsonr(crime_analysis['발생건수'], crime_analysis['실업률'])) # PearsonRResult(statistic=-0.16195175313674026, pvalue=0.5641760129646295)
-print(stats.pearsonr(crime_analysis['발생건수'], crime_analysis['스트레스 인지율'])) # PearsonRResult(statistic=0.8655261708093139, pvalue=3.065014812312715e-05)
+print(stats.pearsonr(crime_analysis['발생건수'], crime_analysis['CPI'])) # PearsonRResult(statistic=-0.8365563129796322, pvalue=0.00010123284951736509)
+print(stats.pearsonr(crime_analysis['발생건수'], crime_analysis['실업률'])) # PearsonRResult(statistic=-0.5535895526397691, pvalue=0.032280268638580974)
+print(stats.pearsonr(crime_analysis['발생건수'], crime_analysis['스트레스_인지율'])) # PearsonRResult(statistic=0.8655261708093139, pvalue=3.065014812312715e-05)
 print(stats.pearsonr(crime_analysis['발생건수'], crime_analysis['인구수']))  # PearsonRResult(statistic=0.903434689304182, pvalue=3.915084633601483e-06)
-# 이때, '실업률' 변수를 제외한 나머지 3개의 변수는 모두 0.05보다 작으므로 종속변수인 범죄건수에 유의한 영향을 미칠 것으로 간주할 수 있다.
+# 이때, 4개의 변수 모두 0.05보다 작으므로 종속변수인 범죄건수(발생건수)에 유의한 영향을 미칠 것으로 간주할 수 있다.
 
 # bartlett을 사용한 등분산 검정
 print(stats.bartlett(crime_analysis['발생건수'], crime_analysis['CPI']))
 print(stats.bartlett(crime_analysis['발생건수'], crime_analysis['실업률']))
-print(stats.bartlett(crime_analysis['발생건수'], crime_analysis['스트레스 인지율']))
+print(stats.bartlett(crime_analysis['발생건수'], crime_analysis['스트레스_인지율']))
 print(stats.bartlett(crime_analysis['발생건수'], crime_analysis['인구수']))
 # 4개 변수 모두 pvalue가 0.05보다 작으므로 각 변수들이 통계적으로 유의하다.는 것을 알 수 있다.
 
 # 독립성 검정 shapiro 사용하기
-from scipy.stats import shapiro
-shapiro_results = crime_analysis.apply(lambda x: shapiro(x))
-print(shapiro_results)
-#       CPI      실업률   스트레스 인지율  인구수     발생건수
-# 0  0.975572  0.915725  0.916385  0.923464  0.965646
-# 1  0.930298  0.165725  0.169626  0.217494  0.789177
-# 인덱스 0은 검정통계량, 1번째는 pvalue를 나타내는데 4변수들의 pvalue 모두 0.05보다 크므로 4변수 모두 정규성을 만족한다고 볼 수 있다.
+import statsmodels.formula.api as smf
+lm_mul = smf.ols(formula='발생건수 ~ CPI+실업률+스트레스_인지율+인구수', data=crime_analysis).fit()
+print(lm_mul.summary())
+# Durbin-Watson:2.097 이므로 2에 가깝기 때문에 자기상관이 없다고 판단, 즉 독립성을 가정할 수 있다.
 
-# 위 결과를 종합적으로 보았을 때 실업률을 제외하고 3가지 변수들에 대해 ANOVA분산분석을 실시하겠다.
+# 다중공선성
+from statsmodels.stats.outliers_influence import variance_inflation_factor
+print(variance_inflation_factor(crime_analysis.values, 1))
+print(variance_inflation_factor(crime_analysis.values, 2))
+print(variance_inflation_factor(crime_analysis.values, 3))
+print(variance_inflation_factor(crime_analysis.values, 4))
+vifdf = pd.DataFrame()
+vifdf['vif_value'] = [variance_inflation_factor(crime_analysis.values, i) for i in range(1, 5)]
+print(vifdf)
+#      vif_value
+# 0   474.653839
+# 1   904.303298
+# 2  3109.624032
+# 3   858.384493
 
-from scipy import stats
-# 등분산 검정
-print(stats.bartlett(crime_analysis['CPI'],crime_analysis['실업률'], crime_analysis['스트레스 인지율'], crime_analysis['인구수']),stats.fligner(crime_analysis['CPI'],crime_analysis['실업률'], crime_analysis['스트레스 인지율'], crime_analysis['인구수']) ,stats.levene(crime_analysis['CPI'],crime_analysis['실업률'], crime_analysis['스트레스 인지율'], crime_analysis['인구수']), sep="\n")
-# BartlettResult(statistic=901.4731487208453, pvalue=4.241215932978223e-195)
-# FlignerResult(statistic=39.57852798144273, pvalue=1.3088388445622003e-08)
-# LeveneResult(statistic=26.629502809814117, pvalue=7.79363288050101e-11)
-'''
+# 위 결과를 종합적으로 보았을 때 88.1%의 모형 설명력을 가진 모델에 대해 4가지 변수들 모두 다중선형회귀분석을 실시하겠다.
 
 
 
-"""
-# 다중선형회귀분석 모델 생성 하기위해 독립,종속 변수 선택 및 모델 생성
-from sklearn.linear_model import LinearRegression
 
-X=crime_analysis[['CPI','실업률','스트레스 인지율','인구수']]
-Y=crime_analysis['발생건수']
 
-X.columns=[['cpi','unemp','stress','pop']]
-Y.columns=['crimecount']
-print(X)
-print(Y)
 
-model = LinearRegression()
-model.fit(X,Y)
 
-# 다중회귀분석이기 때문에 변수들 간 다중공선성 확인
-X=crime_analysis[['CPI','실업률','스트레스 인지율', '인구수']]
-Y=crime_analysis['범죄건수']
-
-print(stats.f_oneway(X))
-"""
-
-"""
-# 예측 모델 생성
-y_pred = model.predict(X)
-
-# 가중치와 y절편 출력
-print('가중치 a : ',model.coef_)
-print('y절편 : ',model.intercept_)
-
-# 결정계수
-r_value = model.score(X,Y)
-print("결정계수 : ",r_value)
-
-# 다중회귀식은
-# 발생 건수=−2,828.5×CPI−30,174×실업률+6,379.7×스트레스 인지율+0.022×인구수+328,526.86 로 구할 수 있다.
-
-# seaborn으로 나타내기
-import seaborn as sns
-ax1 = sns.displot(Y, label='Y실제 값', kde=True)
-ax2 = sns.displot(y_pred, label='Y예측 값', kde=True)
-plt.show()
-"""
